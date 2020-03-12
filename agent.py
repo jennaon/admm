@@ -16,10 +16,12 @@ class Robot():
         self.K = K
         self.index = index
         self.H = H
-        self.safety = 0
+        self.safety = 2
         # self.u0= np.vstack((np.ones((self.dim,1)),
         #                    np.zeros((self.H-1,1))))
-        self.u0 = np.zeros((self.H,1))
+        # self.u0 = np.ones((self.H,1))
+        self.u0 = np.float64(np.random.randint(-2,5,size=(self.H,1)))
+
         self.u = np.zeros_like(self.u0)
         self.u_prev = np.zeros_like(self.u)
         self.lambd= np.zeros_like(self.u)
@@ -28,8 +30,8 @@ class Robot():
         self.neighbors = None
         self.neighbors_dict={}
         self.eps = 1 #termination criteria
-        self.W = np.zeros((self.dim,(self.H)*self.dim))
-        # self.W = np.hstack((self.W,np.eye(2))) #x' = Wx propagation matrix
+        self.W = np.zeros((self.dim,(self.H-1)*self.dim))
+        self.W = np.hstack((self.W,np.eye(2))) #x' = Wx propagation matrix
 
     def init_M(self, col, M_part):
         # self.init = col[:2,[self.index]]
@@ -55,13 +57,13 @@ class Robot():
     def augmented_lagrangian(self,u, u_prev ):
         #gotta enforce initial conditions!!
         neighbors = self.get_neighbors()
-        # pdb.set_trace()
         # cost =
         regularization= 0
         init_position = 0
+
+        # pdb.set_trace()
         cost=0.5 * np.linalg.norm(self.W@self.M@u-self.goal,2 )**2
         for j in self.neighbors_dict.keys():
-            # Mj = getM(j)
             collision_avoidance = 0
             uj, Mj = self.neighbors_dict[j]
             distance = np.expand_dims(self.M@u,axis=1) +self.col[:,[self.index]]\
@@ -88,7 +90,7 @@ class Robot():
                                     args=(self.u_prev),
                                     method=method)#,
                                     # tol=0.001)
-        pdb.set_trace()
+        # pdb.set_trace()
         self.cost=result['fun']
         self.u_prev = self.u
         self.u = np.expand_dims(result['x'],axis=1)

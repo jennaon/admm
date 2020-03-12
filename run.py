@@ -100,7 +100,7 @@ def main():
     while True:
         if np.mod(count,10) ==0:
             print('iter %d .... ' %count)
-            # pdb.set_trace()
+            pdb.set_trace()
         for k in range(args.num_agents):
             #update neighbors
             # print(k)
@@ -122,11 +122,11 @@ def main():
             break
 
         result = np.zeros((args.num_agents,1))
-        print(robots[0].cost)
+        # print(robots[0].cost)
         if count > 10:
             for k in range(args.num_agents):
                 result[k] = int(robots[k].compare_vals())
-            print(np.sum(result))
+            # print(np.sum(result))
             if np.sum(result) ==args.num_agents: #slack
                 print('converged!!')
                 break
