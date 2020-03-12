@@ -17,8 +17,9 @@ class Robot():
         self.index = index
         self.H = H
         self.safety = 0
-        self.u0= np.vstack((np.ones((self.dim,1)),
-                           np.zeros((self.H-1,1))))
+        # self.u0= np.vstack((np.ones((self.dim,1)),
+        #                    np.zeros((self.H-1,1))))
+        self.u0 = np.zeros((self.H,1))
         self.u = np.zeros_like(self.u0)
         self.u_prev = np.zeros_like(self.u)
         self.lambd= np.zeros_like(self.u)
@@ -28,15 +29,25 @@ class Robot():
         self.neighbors_dict={}
         self.eps = 1 #termination criteria
         self.W = np.zeros((self.dim,(self.H)*self.dim))
-        self.W = np.hstack((self.W,np.eye(2))) #x' = Wx propagation matrix
+        # self.W = np.hstack((self.W,np.eye(2))) #x' = Wx propagation matrix
 
     def init_M(self, col, M_part):
+        # self.init = col[:2,[self.index]]
+        self.inits = []
+        for i in range(self.K):
+            self.inits.append(col[:,self.dim*i:self.dim*(i+1)])
+        self.col = col
         # pdb.set_trace()
-        self.init = col[:2,[self.index]]
-        self.M = np.hstack((col[:,[self.index]],M_part))
+        # self.M = np.hstack((col[self.dim:,self.dim*self.index:self.dim*(self.index+1)],
+        #                     M_part[self.dim:,:]))
+        self.M = M_part[2:,:]
+        # print(' ')
 
     def get_neighbors(self):
-        return np.mod([self.index-1+self.K,self.index+1],self.K)
+        # return np.mod([self.index-1+self.K,self.index+1],self.K)
+        neigh = np.linspace(0,self.K-1,self.K,dtype=np.int32)
+        return list(np.hstack((neigh[:self.index],neigh[self.index+1:])))
+
 
     def send_info(self):
         return [self.u, self.M]
@@ -52,9 +63,10 @@ class Robot():
         for j in self.neighbors_dict.keys():
             # Mj = getM(j)
             uj, Mj = self.neighbors_dict[j]
-            # pdb.set_trace()
-            distance = self.M@u - Mj@u # 2Tx1 matrix
+            distance = np.expand_dims(self.M@u,axis=1) +self.col[:,[self.index]]\
+                        - Mj@uj+self.col[:,[j]] # 2Tx1 matrix
             for t in range(self.u.shape[1]):
+                # pdb.set_trace()
                 # if t<2:
                 #     # pdb.set_trace()
                 #     # init_position +=self.lambd[t,0]*np.linalg.norm( (np.expand_dims((self.M@u),axis=1)[:2]-self.init),2)
@@ -65,10 +77,8 @@ class Robot():
             # += np.linalg.norm(np.matmul(self.M-Mj,u),2)**2
             # collision_avoidance +=1.0/(np.linalg.norm(np.matmul(self.M-Mj,u),2)**2+.001)
             # pdb.set_trace()
-            regularization += np.linalg.norm(u-(self.u_prev+uj)/2,2)**2
-        cost  = 0.5 * np.linalg.norm(self.W@self.M@u-self.goal,2 )**2 + \
-                        collision_avoidance + init_position+ \
-                        self.rho*regularization
+            regularization += np.linalg.norm(u-(u_prev+uj)/2,2)**2
+        cost  = 0.5 * np.linalg.norm(self.W@self.M@u-self.goal,2 )**2 + collision_avoidance + init_position+ self.rho*regularization
         # print(cost)
         # print('lambda : %.3f'%(self.lambd))
         return cost
@@ -79,7 +89,7 @@ class Robot():
                                     args=(self.u),
                                     method=method)#,
                                     # tol=0.001)
-        pdb.set_trace()
+        # pdb.set_trace()
         self.u_prev = self.u
         self.u = np.expand_dims(result['x'],axis=1)
 

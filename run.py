@@ -20,7 +20,7 @@ def build_M(H,dim,K,inits):
     col = inits
     prev = inits
     this=np.zeros((dim,K))
-    for i in range(H):
+    for i in range(H-1):
         for k in range(K):
             this[:,[k]] = np.matmul(A,prev[:,[k]])
         # pdb.set_trace()
@@ -102,6 +102,8 @@ def main():
             pdb.set_trace()
         for k in range(args.num_agents):
             #update neighbors
+            print(k)
+            # pdb.set_trace()
             neighbors=robots[k].get_neighbors()
             for j in neighbors:
                 robots[k].neighbors_dict[j] =(robots[j].send_info())
