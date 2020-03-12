@@ -74,6 +74,7 @@ def main():
     goals = np.array([[4,4],[2,0],[0,0],[3,3]]).T
     col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents,inits=inits)
 
+    np.set_printoptions(precision=2,suppress=True)
 
 
     robots= []
@@ -99,10 +100,10 @@ def main():
     while True:
         if np.mod(count,10) ==0:
             print('iter %d .... ' %count)
-            pdb.set_trace()
+            # pdb.set_trace()
         for k in range(args.num_agents):
             #update neighbors
-            print(k)
+            # print(k)
             # pdb.set_trace()
             neighbors=robots[k].get_neighbors()
             for j in neighbors:
@@ -121,6 +122,7 @@ def main():
             break
 
         result = np.zeros((args.num_agents,1))
+        print(robots[0].cost)
         if count > 10:
             for k in range(args.num_agents):
                 result[k] = int(robots[k].compare_vals())

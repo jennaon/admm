@@ -58,27 +58,26 @@ class Robot():
         # pdb.set_trace()
         # cost =
         regularization= 0
-        collision_avoidance = 0
         init_position = 0
+        cost=0.5 * np.linalg.norm(self.W@self.M@u-self.goal,2 )**2
         for j in self.neighbors_dict.keys():
             # Mj = getM(j)
+            collision_avoidance = 0
             uj, Mj = self.neighbors_dict[j]
             distance = np.expand_dims(self.M@u,axis=1) +self.col[:,[self.index]]\
-                        - Mj@uj+self.col[:,[j]] # 2Tx1 matrix
-            for t in range(self.u.shape[1]):
+                        - Mj@uj-self.col[:,[j]] # 2Tx1 matrix
+            # pdb.set_trace()
+            for t in range(self.H):
                 # pdb.set_trace()
-                # if t<2:
-                #     # pdb.set_trace()
-                #     # init_position +=self.lambd[t,0]*np.linalg.norm( (np.expand_dims((self.M@u),axis=1)[:2]-self.init),2)
-                #     init_position +=self.lambd[t,0]* np.abs(u[t]-1)**2
-                # else:
-                collision_avoidance += self.lambd[t,0]*(self.safety**2-np.abs(distance[t]))
+                dist = np.linalg.norm(distance[self.dim*t:self.dim*(t+1)],2)
+                collision_avoidance += self.lambd[t,0]*(self.safety**2-dist)
             # print(collision_avoidance)
             # += np.linalg.norm(np.matmul(self.M-Mj,u),2)**2
             # collision_avoidance +=1.0/(np.linalg.norm(np.matmul(self.M-Mj,u),2)**2+.001)
             # pdb.set_trace()
-            regularization += np.linalg.norm(u-(u_prev+uj)/2,2)**2
-        cost  = 0.5 * np.linalg.norm(self.W@self.M@u-self.goal,2 )**2 + collision_avoidance + init_position+ self.rho*regularization
+            regularization += np.linalg.norm(u-(u_prev+uj)/2.0,2)**2
+            cost +=collision_avoidance
+        cost+= init_position+ self.rho*regularization
         # print(cost)
         # print('lambda : %.3f'%(self.lambd))
         return cost
@@ -86,10 +85,11 @@ class Robot():
     def primal_update(self,method='CG'):
         result = sp.optimize.minimize(self.augmented_lagrangian,
                                     x0=self.u0,
-                                    args=(self.u),
+                                    args=(self.u_prev),
                                     method=method)#,
                                     # tol=0.001)
-        # pdb.set_trace()
+        pdb.set_trace()
+        self.cost=result['fun']
         self.u_prev = self.u
         self.u = np.expand_dims(result['x'],axis=1)
 
