@@ -2,6 +2,7 @@ import argparse
 import pdb
 import numpy as np
 from agent import Robot
+import matplotlib.pyplot as plt
 
 A = np.array([[.1, .2],[.3, .4]])
 B  = np.array([[0],[1]])
@@ -30,23 +31,53 @@ def build_M(H,dim,K,inits):
     M = np.vstack((np.zeros((dim,M.shape[1])),M))
     return col,M
 
-def simulate(robots, inits):
+def simulate(robots, start):
     K = len(robots)
-    T = robots[0].u.shape[0]-1
-    pdb.set_trace()
-    x = np.zeros((T,K))
+    T = robots[0].u.shape[0]
+    dim = start.shape[0]
+    x = np.zeros((dim*(T+1),K))
     for k in range(K):
-        for t in range(T):
-            pass
+        robot = robots[k]
+        x[:2,[k]] = start[:,[k]]
+        # pdb.set_trace()
+        for t in range(1,T+1):
+            x[dim*t:dim*(t+1),[k]] = robot.A @ x[dim*(t-1):dim*(t),[k]] + \
+                            robot.B @ np.expand_dims(robot.u[t-1],axis=1)
+    # pdb.set_trace()
+    return x
+def process_x(x):
+    M,N = x.shape
+    xx = np.zeros((int(M/2),N))
+    xy = np.zeros_like(xx)
+    for i in range(int(M/2)):
+        xx[[i],:] = x[[2*i],:]
+        xy[[i],:] = x[[2*i+1],:]
+    # pdb.set_trace()
+    return xx, xy
 
-def plot():
-    pass
+def make_plots(x,goals,iter):
+    plt.figure()
+    T,K = x.shape
+    time = np.linspace(0,T-1,T)
+    filename = './results/traj_iter'+str(iter)+'.png'
+    x,y = process_x(x)
+    for k in range(K):
+        lbl ='robot'+str(k)
+        # pdb.set_trace()
+        plt.scatter(x[:,k],y[:,k],label=lbl,alpha=0.5)
+    plt.legend()
+    # plt.saveas(filename)
+
+    # plt.show()
+
+
+    # plt.plot
 
 
 
 def simulate_and_plot(robots,inits, goals,iter):
-    simulate(robots,inits)
-    plot()
+    x=simulate(robots,inits)
+    make_plots(x,goals,iter)
 
 
 def main():
@@ -100,7 +131,8 @@ def main():
     while True:
         if np.mod(count,10) ==0:
             print('iter %d .... ' %count)
-            pdb.set_trace()
+            if count >0:
+                simulate_and_plot(robots,inits, goals,count)
         for k in range(args.num_agents):
             #update neighbors
             # print(k)

@@ -7,8 +7,8 @@ from scipy.optimize import minimize
 
 class Robot():
     def __init__(self,dim,goal,A,B,rho,K,index,H,M_part,col):
-        self.A = np.array([[.1, .2],[.3, .4]])
-        self.B = np.array([[0],[1]])
+        self.A = np.array([[1, 1],[0, 1]])
+        self.B = np.array([[1],[1]])
         self.dim=dim
         self.bdim = self.B.shape[0]
         # self.M = np.zeros((H*dim,(H)))
@@ -17,6 +17,7 @@ class Robot():
         self.index = index
         self.H = H
         self.safety = 2
+        self.traj=[]
         # self.u0= np.vstack((np.ones((self.dim,1)),
         #                    np.zeros((self.H-1,1))))
         # self.u0 = np.ones((self.H,1))
