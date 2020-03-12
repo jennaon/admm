@@ -30,6 +30,25 @@ def build_M(H,dim,K,inits):
     M = np.vstack((np.zeros((dim,M.shape[1])),M))
     return col,M
 
+def simulate(robots, inits):
+    K = len(robots)
+    T = robots[0].u.shape[0]-1
+    pdb.set_trace()
+    x = np.zeros((T,K))
+    for k in range(K):
+        for t in range(T):
+            pass
+
+def plot():
+    pass
+
+
+
+def simulate_and_plot(robots,inits, goals,iter):
+    simulate(robots,inits)
+    plot()
+
+
 def main():
     parser = argparse.ArgumentParser(description='Lucky charm ADMM')
     parser.add_argument('--output', type=str, required=False, help='location to store results')
@@ -49,7 +68,10 @@ def main():
     args = parser.parse_args()
     # with open(args.config, 'r') as f:
     #     config = eval(f.read())
+
+
     inits = np.array([[1,0],[0,2],[4,4],[2,0]]).T
+    goals = np.array([[4,4],[2,0],[0,0],[3,3]]).T
     col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents,inits=inits)
 
 
@@ -59,6 +81,7 @@ def main():
         robots.append(Robot(A = A,
                             B=B,
                             dim=args.dim,
+                            goal=goals[:,[i]],
                             rho = args.rho,
                             K =args.num_agents,
                             index=i,
@@ -67,26 +90,46 @@ def main():
                             col=col))
 
     rho_candidates = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 0.8]
+    solvers = ['Powell', 'CG']
+    x = []
 
     count = 0
+    result = np.zeros((args.num_agents,1))
     # pdb.set_trace()
     while True:
+        if np.mod(count,10) ==0:
+            print('iter %d .... ' %count)
+            pdb.set_trace()
         for k in range(args.num_agents):
             #update neighbors
             neighbors=robots[k].get_neighbors()
             for j in neighbors:
                 robots[k].neighbors_dict[j] =(robots[j].send_info())
         # pdb.set_trace()
+        # simulate_and_plot(robots,inits, goals,count)
 
         for k in range(args.num_agents):
             robots[k].primal_update()
             robots[k].dual_update()
+            # robots[k].step_forward()
         # pdb.set_trace()
         count +=1
         if count > args.max_iter:
             print('failed to converge, loop broken by the safety counter')
             break
 
+        result = np.zeros((args.num_agents,1))
+        if count > 10:
+            for k in range(args.num_agents):
+                result[k] = int(robots[k].compare_vals())
+            print(np.sum(result))
+            if np.sum(result) ==args.num_agents: #slack
+                print('converged!!')
+                break
+
+    #simulate()
+    for k in range(args.num_agents):
+        pass
     pdb.set_trace()
     print('')
 
