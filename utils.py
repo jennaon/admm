@@ -59,7 +59,7 @@ u0 = np.zeros((H-1,1)) #for each robot
 u0 = np.vstack((np.ones((dim,1)),u0))
 u=u0
 # lamdba = np.zeos((1,1))
-lambd= 0
+lambd= 0.1
 A = np.zeros((dim,(H)*dim))
 A = np.hstack((A,np.eye(2)))
 x0 =np.expand_dims( np.array([1.3, 0.7, 0.8, 1.9, 1.2]),axis=1)
@@ -69,9 +69,8 @@ rho = 0.1
 def getM(i):
     return np.hstack((col[:,[i]],M))
 
-def augmented_lagrangian(u, u_prev,lambd=0,rho=.1, ):
+def augmented_lagrangian(u, u_prev,lambd=.1,rho=.1, ):
     #gotta enforce initial conditions!!
-    collision_criteria = .25
     neighbors = get_neighbors(i)
     Mi =getM(i)
     cost = 0.5 * np.linalg.norm(A@Mi@u,2)**2
@@ -79,8 +78,7 @@ def augmented_lagrangian(u, u_prev,lambd=0,rho=.1, ):
     regularization= 0
     for j in neighbors:
         Mj = getM(j)
-        collision_avoidance +=1.0/(np.linalg.norm(np.matmul(Mi-Mj,u),2)**2+.001) #works with Powell
-        # collision_avoidance += collision_criteria/K - np.linalg.norm(np.matmul(Mi-Mj,u),2)**2 #probably most correct, but doesn't work that well
+        collision_avoidance += np.linalg.norm(np.matmul(Mi-Mj,u),2)**2
         # pdb.set_trace()
         regularization += np.linalg.norm(u-(u_prev+x0)/2,2)**2
     cost += collision_avoidance + regularization
@@ -88,7 +86,7 @@ def augmented_lagrangian(u, u_prev,lambd=0,rho=.1, ):
     return cost
 
 c = augmented_lagrangian(u0,x0)
-result = sp.optimize.minimize(augmented_lagrangian,x0=u0,args=(x0,0,.01),method='CG')
 pdb.set_trace()
+result = sp.optimize.minimize(augmented_lagrangian,x0=u0,args=(x0,.5,.2),method='Powell')
 print(' ')
 # scipy.optimize.minimize()
