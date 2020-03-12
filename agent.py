@@ -79,7 +79,7 @@ class Robot():
                                     args=(self.u),
                                     method=method)#,
                                     # tol=0.001)
-        pdb.set_trace()
+        # pdb.set_trace()
         self.u_prev = self.u
         self.u = np.expand_dims(result['x'],axis=1)
 
