@@ -3,9 +3,10 @@ import pdb
 import numpy as np
 from agent import Robot
 import matplotlib.pyplot as plt
-
-A = np.array([[.1, .2],[.3, .4]])
-B  = np.array([[0],[1]])
+from run_admm import ADMMSolver
+#
+A =  np.array([[.1, .2],[.3, .4]])
+B  = np.array([[1],[1]])
 
 def build_M(H,dim,K,inits):
     M = np.zeros((H*dim,(H)))
@@ -38,6 +39,7 @@ def simulate(robots, start):
     x = np.zeros((dim*(T+1),K))
     for k in range(K):
         robot = robots[k]
+        robot.control.append(robot.u[0])
         x[:2,[k]] = start[:,[k]]
         # pdb.set_trace()
         for t in range(1,T+1):
@@ -71,10 +73,6 @@ def make_plots(x,goals,iter):
     # plt.show()
 
 
-    # plt.plot
-
-
-
 def simulate_and_plot(robots,inits, goals,iter):
     x=simulate(robots,inits)
     make_plots(x,goals,iter)
@@ -87,6 +85,8 @@ def main():
 
     parser.add_argument('--max-iter', type=int, default=500,
                         help='max ADMM iterations (termination conditions, default: 500) ')
+    parser.add_argument('--max-steps', type=int, default=50,
+                        help='max steps that agents can take to reach the goal (default:50)')
     parser.add_argument('--num-agents', type=int, default=4, metavar='N',
                         help='number of robots (default: 4)')
     parser.add_argument('--rho', type=float, default=0.4,
@@ -102,11 +102,10 @@ def main():
 
 
     inits = np.array([[1,0],[0,2],[4,4],[2,0]]).T
-    goals = np.array([[4,4],[2,0],[0,0],[3,3]]).T
+    goals = np.array([[4,4],[2,0],[0,0],[1,1]]).T
     col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents,inits=inits)
 
     np.set_printoptions(precision=2,suppress=True)
-
 
     robots= []
     for i in range(args.num_agents):
@@ -123,50 +122,43 @@ def main():
 
     rho_candidates = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 0.8]
     solvers = ['Powell', 'CG']
-    x = []
+    paths = inits
+    controls=None
+    admm = ADMMSolver(robots=robots,
+                     K = args.num_agents,
+                      max_iter=args.max_iter)
 
-    count = 0
-    result = np.zeros((args.num_agents,1))
-    # pdb.set_trace()
+    traj_count =0
+    start = inits
+    track_results =np.zeros((1,args.num_agents))
+    np.set_printoptions(precision=2, suppress=True)
     while True:
-        if np.mod(count,10) ==0:
-            print('iter %d .... ' %count)
-            if count >0:
-                simulate_and_plot(robots,inits, goals,count)
+        admm.solve()
+        if np.mod(traj_count,10) ==0:
+            print('iter %d .... ' %traj_count)
+            pdb.set_trace()
+        x=simulate(robots,start) #u is appended here
+        next_pos = x[2:4,:]
+        paths=np.vstack((paths,next_pos))
+
+        #update starting positions for all robots
         for k in range(args.num_agents):
-            #update neighbors
-            # print(k)
+            robot = robots[k]
             # pdb.set_trace()
-            neighbors=robots[k].get_neighbors()
-            for j in neighbors:
-                robots[k].neighbors_dict[j] =(robots[j].send_info())
-        # pdb.set_trace()
-        # simulate_and_plot(robots,inits, goals,count)
+            robot.x0 = next_pos[:,[k]]
 
-        for k in range(args.num_agents):
-            robots[k].primal_update()
-            robots[k].dual_update()
-            # robots[k].step_forward()
-        # pdb.set_trace()
-        count +=1
-        if count > args.max_iter:
-            print('failed to converge, loop broken by the safety counter')
+            track_results[0,k] = int(np.linalg.norm(robot.x0 - goals[:,[k]],2) < 0.1)
+
+        if np.sum(track_results) >=2:
+            print('success lol')
             break
+        if traj_count >=args.max_steps:
+            print('traj failed to converge, loop broken by the safety counter')
+            break
+        traj_count +=1
 
-        result = np.zeros((args.num_agents,1))
-        # print(robots[0].cost)
-        if count > 10:
-            for k in range(args.num_agents):
-                result[k] = int(robots[k].compare_vals())
-            # print(np.sum(result))
-            if np.sum(result) ==args.num_agents: #slack
-                print('converged!!')
-                break
-
-    #simulate()
-    for k in range(args.num_agents):
-        pass
     pdb.set_trace()
+    make_plots(paths,goals,iter)
     print('')
 
 
