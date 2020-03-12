@@ -80,7 +80,9 @@ def augmented_lagrangian(u, u_prev,lambd=0,rho=.1, ):
     for j in neighbors:
         Mj = getM(j)
         collision_avoidance +=1.0/(np.linalg.norm(np.matmul(Mi-Mj,u),2)**2+.001) #works with Powell
-        # collision_avoidance += collision_criteria/K - np.linalg.norm(np.matmul(Mi-Mj,u),2)**2 #probably most correct, but doesn't work that well
+        # collision_avoidance += collision_criteria/K - np.linalg.norm(np.matmul(Mi-Mj,u),2)**2
+        #probably most correct, but doesn't work that well
+        # causes an error with Powell, and divide by zero error with CG, i think
         # pdb.set_trace()
         regularization += np.linalg.norm(u-(u_prev+x0)/2,2)**2
     cost += collision_avoidance + regularization
@@ -88,7 +90,7 @@ def augmented_lagrangian(u, u_prev,lambd=0,rho=.1, ):
     return cost
 
 c = augmented_lagrangian(u0,x0)
-result = sp.optimize.minimize(augmented_lagrangian,x0=u0,args=(x0,0,.01),method='CG')
+result = sp.optimize.minimize(augmented_lagrangian,x0=u0,args=(x0,0,.01),method='Powell')
 pdb.set_trace()
 print(' ')
 # scipy.optimize.minimize()
