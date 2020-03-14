@@ -14,8 +14,9 @@ class ADMMSolver():
         count = 0
         result = np.zeros((self.K,1))
         while True:
-            if np.mod(count,10) ==0:
-                print('iter %d .... ' %count)
+            # if np.mod(count,2) ==0:
+                # print('iter %d .... ' %count)
+                # pdb.set_trace()
             for k in range(self.K):
                 robot = self.robots[k]
                 #update neighbors
@@ -23,6 +24,7 @@ class ADMMSolver():
                 for j in neighbors:
                     robot.neighbors_dict[j] =(self.robots[j].send_info())
             for k in range(self.K):
+                robot = self.robots[k]
                 robot.primal_update()
                 robot.dual_update()
             count +=1

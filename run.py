@@ -5,7 +5,7 @@ from agent import Robot
 import matplotlib.pyplot as plt
 from run_admm import ADMMSolver
 #
-A =  np.array([[.1, .2],[.3, .4]])
+A =  np.array([[.2, .5],[.3, .4]])
 B  = np.array([[1],[1]])
 
 def build_M(H,dim,K,inits):
@@ -66,7 +66,7 @@ def make_plots(x,goals,iter):
     for k in range(K):
         lbl ='robot'+str(k)
         # pdb.set_trace()
-        plt.scatter(x[:,k],y[:,k],label=lbl,alpha=0.5)
+        plt.plot(x[:,k],y[:,k],label=lbl,alpha=0.5)
     plt.legend()
     # plt.saveas(filename)
 
@@ -136,7 +136,7 @@ def main():
         admm.solve()
         if np.mod(traj_count,10) ==0:
             print('iter %d .... ' %traj_count)
-            pdb.set_trace()
+            # pdb.set_trace()
         x=simulate(robots,start) #u is appended here
         next_pos = x[2:4,:]
         paths=np.vstack((paths,next_pos))
