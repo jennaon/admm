@@ -78,7 +78,7 @@ def main():
                         help='TrajOpt horizon (default: 4)')
     parser.add_argument('--dim', type=int, default=2,
                         help='state space dimension (default: 2)')
-    parser.add_argument('--solver', type=str, default='CG',
+    parser.add_argument('--solver', type=str, default='Nelder-Mead',
                         help='solver choice: choose \'CG\' or \'Powell\' to begin. default: CG')
 
     args = parser.parse_args()
@@ -126,8 +126,9 @@ def main():
     X = inits.reshape(-1,args.num_agents)
     while True:
         admm.solve()
-        if np.mod(traj_count,10) ==0 and traj_count>0:
-            print('iter %d .... ' %traj_count)
+        print('iter %d .... ' %traj_count)
+        # if np.mod(traj_count,10) ==0 and traj_count>0:
+
         new_u=robots[0].u.reshape(-1,args.num_agents)[[0],:]
         U=np.vstack((U,new_u))
         # pdb.set_trace()
@@ -137,17 +138,18 @@ def main():
         X = np.vstack((X,new_pos))
         simulate_the_rest_and_plot(X,U,robots[0].u.reshape(-1,args.num_agents),
                                     inits,goals,traj_count)
-
+        # '''
         #update u0 & x0 values
         for k in range(args.num_agents):
             robots[k].u0=np.copy(robots[0].u)
-            # robots[k].inits=np.copy(new_pos)
+            # pdb.set_trace()
+            robots[k].inits=np.copy(new_pos.reshape(-1,1))
         # paths=np.vstack((paths,next_pos))
         # pdb.set_trace()
         # print(goals)
         # print(new_pos)
         how_close=np.linalg.norm(new_pos-goals.reshape(-1,args.num_agents))
-        # print(how_close)
+        print('how close: %.2f'%how_close)
 
         if np.linalg.norm(new_pos-goals.reshape(-1,args.num_agents))<1:
             print('reached the goal')
@@ -156,7 +158,6 @@ def main():
         if traj_count >=args.max_steps:
             print('traj failed to converge, loop broken by the safety counter')
             # simulate the rest and go
-
             break
         traj_count +=1
 

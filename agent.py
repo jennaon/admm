@@ -21,7 +21,7 @@ class Robot():
         # self.u0= np.vstack((np.ones((self.dim,K)),
         #                     np.float64(np.random.randint(-2,5,
         #                                         size=(self.H,K)))))
-        self.u0=u0
+        self.u0=np.float64(np.random.randint(-2,5,size=(self.H*self.K,1)))
         # self.u0 =
         # self.u0 = np.ones((self.H,1))
         self.control=[]
@@ -71,31 +71,33 @@ class Robot():
         # pdb.set_trace()
         reach_goal =self.W @(self.col @ self.inits + self.M @ u )-self.goals
         regularization = 0
-        cost = 0.5 * np.linalg.norm(reach_goal,2) ** 2
-        self.away_from_the_goal=(cost*2)
-
+        print('final pos:')
+        print(self.W @(self.col @ self.inits + self.M @ u ))
+        # cost =
+        self.away_from_the_goal=( np.linalg.norm(reach_goal,2) **2)
 
         for j in range(self.K):
             if j == self.index:
                 pass #myself, skip
             else:
                 uj_prev = self.neighbors_dict[j]
-                regularization += np.linalg.norm(u-(self.u_prev+uj_prev)/2 )**2
+                regularization += self.rho/2.0 * np.linalg.norm(u-(self.u_prev+uj_prev)/2 )**2
         # pdb.set_trace()
         self.regularization=regularization
-        cost += self.rho/2.0 * regularization +(u.T @ self.lambd)[0,0]
 
-        # pdb.set_trace()
-        '''
-        todo: add collision avoidance
-        first two values of u should not change over iteration
-        '''
+        cost =0.5 * np.linalg.norm(reach_goal,2) ** 2+ regularization + ((u.T @ self.lambd)[0,0])
+
+        # return (1.0/self.K)*self.W @(self.col @ self.inits + self.M @ u )-self.goals + \
+        #                 self.rho/2.0 *np.linalg.norm(u-(self.u_prev+uj_prev)/2 )**2 + \
+        #                 (u.T @ self.lambd)[0,0]
+        # print('distacne cost:%.2f, regularize %.2f'%(0.5 * np.linalg.norm(reach_goal,2) ** 2,self.rho/2.0 *regularization))
         return cost
 
     def primal_update(self):
         result = sp.optimize.minimize(self.augmented_lagrangian,
                                     x0=self.u0,
-                                    method=self.method)#,
+                                    method='Nelder-Mead',
+                                    tol=0.1)#,
         self.cost=result['fun']
         # print('cost: %.3f'%self.cost)
         # pdb.set_trace()

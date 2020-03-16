@@ -15,6 +15,7 @@ class ADMMSolver():
         for k in range(self.K):
             robot = self.robots[k]
             new_u=robot.primal_update()
+            # print(new_u)
             robot.dual_update(new_u)
 
     def update_my_data(self):
@@ -31,10 +32,10 @@ class ADMMSolver():
         result = np.zeros((self.K,1))
         # print(np.hstack((self.robots[0].u,self.robots[1].u)))
         while True:
+            print('admm iter %d .... ' %count)
 
             # if np.mod(count,2) ==0:
-                # print('iter %d .... ' %count)
-                # pdb.set_trace()
+            # pdb.set_trace()
             self.update_my_data()
 
             '''
@@ -59,7 +60,6 @@ class ADMMSolver():
             compare=self.robots[0].u.reshape(-1,1)
             dev = 0
             for k in range(1,self.K):
-
                 dev += np.linalg.norm(compare-self.robots[k].u.reshape(-1,1),2)
             if dev <self.threshold:
                 # pdb.set_trace()
