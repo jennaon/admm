@@ -12,11 +12,14 @@ class ADMMSolver():
         self.threshold = .1
 
     def iterate_step(self):
+        # new_u=np.zeros((self.robots[0].u.shape[0],self.K))
         for k in range(self.K):
             robot = self.robots[k]
-            new_u=robot.primal_update()
+            robot.primal_update()
             # print(new_u)
-            robot.dual_update(new_u)
+        for k in range(self.K):
+            robot = self.robots[k]
+            robot.dual_update()
 
     def update_my_data(self):
         for k in range(self.K):
@@ -64,6 +67,6 @@ class ADMMSolver():
             if dev <self.threshold:
                 # pdb.set_trace()
                 print('ADMM converged :), iter: %d. below is the review:'%count)
-                for k in range(self.K):
-                    print('robot %d away from the goal by %.2f'%(k,self.robots[k].away_from_the_goal))
+                # for k in range(self.K):
+                #     print('robot %d away from the goal by %.2f'%(k,self.robots[k].away_from_the_goal))
                 break

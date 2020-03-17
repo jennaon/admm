@@ -4,19 +4,25 @@ import numpy as np
 from agent import Robot
 import matplotlib.pyplot as plt
 from run_admm import ADMMSolver
-#
-A =  np.array([[.2, .5],[.3, .4]])
-B  = np.array([[.4],[.6]])
-def simulate_the_rest_and_plot(X,U,all_u,inits,goals,iter):
-    dim = 2
-    K = int(inits.shape[0]/dim)
-    for i in range(1,all_u.shape[0]):
-        new_u=all_u[[i],:]
-        U=np.vstack((U,new_u))
-        # pdb.set_trace()
-        new_pos=A@X[-1*dim:] + B@new_u
-        X = np.vstack((X,new_pos))
-    make_plots(X,inits.reshape(-1,K),goals.reshape(-1,K),iter)
+
+# np.random.seed(1234)
+# A =  np.array([[.2, .5],[.3, .4]])
+# B  = np.array([[.4],[.6]])
+A =  np.array([[1, 0],[0, 1]])
+B  = np.array([[1],[1]])
+# def simulate_the_rest_and_plot(X,U,all_u,inits,goals,iter):
+#     dim = 2
+#     # pdb.set_trace()
+#     K = int(inits.shape[0]/dim)
+#     for i in range(1,all_u.shape[0]):
+#         new_u=all_u[[i],:]
+#         U=np.vstack((U,new_u))
+#         new_pos=A@X[-1*dim:] + B@new_u
+#         X = np.vstack((X,new_pos))
+#         # pdb.set_trace()
+#     make_plots(X,inits.reshape(-1,K,order='F'),
+#                 goals.reshape(-1,K,order='F'),
+#                 iter)
 
 
 def process_x(x):
@@ -31,12 +37,12 @@ def process_x(x):
 
 def make_plots(X,inits,goals,iter):
     plt.figure()
-    # pdb.set_trace()
     T,K = X.shape
-    # time = np.linspace(0,T-1,T)
     filename = './results/traj_iter'+str(iter)+'.png'
     x,y = process_x(X)
-    # cmap = get_cmap(K*2)
+    # pdb.set_trace()
+    print(x)
+    print(y)
     for k in range(K):
         lbl ='robot'+str(k)
         goal_lbl = lbl + ' goal'
@@ -45,15 +51,16 @@ def make_plots(X,inits,goals,iter):
         # color=cmap(k)
         cmap = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
-        plt.plot(x[:,k],y[:,k],label=lbl,c=cmap[k],alpha=0.5)
-        # pdb.set_trace()
+        # plt.show()
         plt.scatter(inits[0,k],inits[1,k],c=cmap[k],marker='o',label=start_lbl)
         plt.scatter(goals[0,k],goals[1,k],c=cmap[k],marker='*',label=goal_lbl)
+        # pdb.set_trace()
+        plt.plot(x[:,k],y[:,k],label=lbl,c=cmap[k],alpha=0.5)
 
     plt.legend()
     plt.savefig(filename)
+    plt.close()
     # plt.show()
-    # print('go big and go home')
 
 
 def simulate_and_plot(robots,inits, goals,iter):
@@ -82,20 +89,15 @@ def main():
                         help='solver choice: choose \'CG\' or \'Powell\' to begin. default: CG')
 
     args = parser.parse_args()
-    # with open(args.config, 'r') as f:
-    #     config = eval(f.read())
 
-
-    # inits = np.array([[1,0],[0,2],[4,4],[2,0]]).T
-    # goals = np.array([[4,3],[1,2],[0,0],[1,1]]).T
-    inits = np.array([[1],[0],[0],[2]])
-    goals = np.array([[4],[4],[2],[0]])
+    # inits = np.array([[1],[0],[0],[2],[3],[3],[2],[0]])
+    # goals = np.array([[2],[1],[1],[3],[4],[4],[3],[1]])
+    inits = np.array([[0],[0],[4],[4]])
+    goals = np.array([[3],[3],[1],[1]])
     # col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents)
 
     np.set_printoptions(precision=3,suppress=True)
     random_u0=np.float64(np.random.randint(-2,5,size=(args.horizon*args.num_agents,1)))
-    # pdb.set_trace()
-    # random_u0
     robots= []
     for i in range(args.num_agents):
         robots.append(Robot(A = A,
@@ -123,48 +125,41 @@ def main():
     track_results =np.zeros((1,args.num_agents))
     np.set_printoptions(precision=2, suppress=True)
     U = np.ones((1,args.num_agents))
-    X = inits.reshape(-1,args.num_agents)
+    X = inits.reshape(-1,args.num_agents,order='F')
     while True:
         admm.solve()
         print('iter %d .... ' %traj_count)
-        # if np.mod(traj_count,10) ==0 and traj_count>0:
-
-        new_u=robots[0].u.reshape(-1,args.num_agents)[[0],:]
-        U=np.vstack((U,new_u))
+        new_u=robots[0].u.reshape(-1,args.num_agents,order='F')[[0],:]
+        pos = (robots[0].M @ robots[0].u + (robots[0].col @ inits) ).reshape(-1,args.num_agents,order='F')
         # pdb.set_trace()
-        # A@xprev + B@u
+        make_plots(np.vstack((inits.reshape(-1,args.num_agents,order='F'),pos)),inits.reshape(-1,args.num_agents,order='F'),goals.reshape(-1,args.num_agents,order='F'),traj_count)
+        last_pos = pos[-args.dim:]
+        U=np.vstack((U,new_u))
         new_pos=A@X[-args.dim:] + B@new_u
-        # simulate(robots,,new_u)
         X = np.vstack((X,new_pos))
-        simulate_the_rest_and_plot(X,U,robots[0].u.reshape(-1,args.num_agents),
-                                    inits,goals,traj_count)
-        # '''
+        # simulate_the_rest_and_plot(X,U,robots[0].u.reshape(-1,args.num_agents,order='F'),
+        #                             inits,goals,traj_count)
+        '''
         #update u0 & x0 values
         for k in range(args.num_agents):
             robots[k].u0=np.copy(robots[0].u)
             # pdb.set_trace()
-            robots[k].inits=np.copy(new_pos.reshape(-1,1))
-        # paths=np.vstack((paths,next_pos))
+            robots[k].inits=np.copy(new_pos.reshape(-1,1))'''
         # pdb.set_trace()
-        # print(goals)
-        # print(new_pos)
-        how_close=np.linalg.norm(new_pos-goals.reshape(-1,args.num_agents))
+        how_close=np.linalg.norm(last_pos-goals.reshape(-1,args.num_agents,order='F'))
         print('how close: %.2f'%how_close)
 
-        if np.linalg.norm(new_pos-goals.reshape(-1,args.num_agents))<1:
+        if how_close<.1:
             print('reached the goal')
             break
 
         if traj_count >=args.max_steps:
             print('traj failed to converge, loop broken by the safety counter')
-            # simulate the rest and go
             break
         traj_count +=1
 
-    # pdb.set_trace()
     iter ='FINAL'
-    make_plots(X,inits.reshape(-1,args.num_agents),goals.reshape(-1,args.num_agents),iter)
-    # pdb.set_trace()
+
     print('')
 
 
