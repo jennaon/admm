@@ -6,104 +6,119 @@ import pdb
 from scipy.optimize import minimize
 
 class Robot():
-    def __init__(self,dim,goal,A,B,rho,K,index,H,M_part,col):
-        self.A = np.array([[.1, .2],[.3, .4]])
-        self.B = np.array([[0],[1]])
+    def __init__(self,dim,inits,goals,A,B,u0,rho,K,index,H,method):
+        self.A = A
+        self.B = B
         self.dim=dim
         self.bdim = self.B.shape[0]
-        # self.M = np.zeros((H*dim,(H)))
-        self.goal =goal
+        self.goals =goals
+        self.inits = inits
         self.K = K
         self.index = index
         self.H = H
-        self.safety = 0
-        self.u0= np.vstack((np.ones((self.dim,1)),
-                           np.zeros((self.H-1,1))))
-        self.u = np.zeros_like(self.u0)
-        self.u_prev = np.zeros_like(self.u)
-        self.lambd= np.zeros_like(self.u)
+        self.safety =.5
+        self.traj=[]
+        # self.u0= np.vstack((np.ones((self.dim,K)),
+        #                     np.float64(np.random.randint(-2,5,
+        #                                         size=(self.H,K)))))
+        # self.u0=np.float64(np.random.randint(-2,5,size=(self.H*self.K,1)))
+        self.u0 =u0
+        # self.u0 = np.ones((self.H,1))
+        self.control=[]
+        self.u  = np.copy(self.u0)
+        self.u_prev = np.zeros_like(self.u0)
+        self.lambd= np.zeros_like(self.u0)
         self.rho = rho
-        self.init_M(col, M_part)
-        self.neighbors = None
-        self.neighbors_dict={}
-        self.eps = 1 #termination criteria
-        self.W = np.zeros((self.dim,(self.H)*self.dim))
-        self.W = np.hstack((self.W,np.eye(2))) #x' = Wx propagation matrix
+        self.init_M()
 
-    def init_M(self, col, M_part):
+        self.neighbors_dict={}
+        self.W = np.zeros((self.dim,(self.H-1)*self.dim))
+        self.W = np.hstack((self.W,np.eye(2))) #x' = Wx propagation matrix
+        self.W =np.kron(np.eye(self.K,dtype=int),self.W)
         # pdb.set_trace()
-        self.init = col[:2,[self.index]]
-        self.M = np.hstack((col[:,[self.index]],M_part))
+        self.method = method
+
+    def init_M(self):
+        M = np.zeros((self.H*self.dim,(self.H)))
+        for i in range(0,M.shape[0],self.dim):
+            val = int(i/2+1)-1
+            M[i:i+self.dim,[val]]=self.B
+            for j in range(val,0,-1):
+                M[i:i+self.dim,[j-1]]=self.A @ M[i:i+self.dim,[j]]
+
+        col = np.zeros((self.dim*(self.H+1),self.dim))
+        col[0:2,0:2]=np.eye(2)
+        for i in range(self.H):
+            col[self.dim*(i+1):self.dim*(i+2),:] = self.A @ col[self.dim*(i):self.dim*(i+1),:]
+        # self.M = M
+        self.M = np.kron(np.eye(self.K,dtype=int),M)
+        # pdb.set_trace()
+        # self.col = col[2:,:].reshape(-1,1) # propagation of how each robot propagates its init position thru time
+        self.col = np.kron(np.eye(self.K),col[2:,:])
 
     def get_neighbors(self):
-        return np.mod([self.index-1+self.K,self.index+1],self.K)
+        # return np.mod([self.index-1+self.K,self.index+1],self.K)
+        neigh = np.linspace(0,self.K-1,self.K,dtype=np.int32)
+        return list(np.hstack((neigh[:self.index],neigh[self.index+1:])))
 
     def send_info(self):
-        return [self.u, self.M]
+        return self.u
 
-    def augmented_lagrangian(self,u, u_prev ):
-        #gotta enforce initial conditions!!
-        neighbors = self.get_neighbors()
-        # pdb.set_trace()
-        # cost =
-        regularization= 0
-        collision_avoidance = 0
-        init_position = 0
-        for j in self.neighbors_dict.keys():
-            # Mj = getM(j)
-            uj, Mj = self.neighbors_dict[j]
-            # pdb.set_trace()
-            distance = self.M@u - Mj@u # 2Tx1 matrix
-            for t in range(self.u.shape[1]):
-                # if t<2:
-                #     # pdb.set_trace()
-                #     # init_position +=self.lambd[t,0]*np.linalg.norm( (np.expand_dims((self.M@u),axis=1)[:2]-self.init),2)
-                #     init_position +=self.lambd[t,0]* np.abs(u[t]-1)**2
-                # else:
-                collision_avoidance += self.lambd[t,0]*(self.safety**2-np.abs(distance[t]))
-            # print(collision_avoidance)
-            # += np.linalg.norm(np.matmul(self.M-Mj,u),2)**2
-            # collision_avoidance +=1.0/(np.linalg.norm(np.matmul(self.M-Mj,u),2)**2+.001)
-            # pdb.set_trace()
-            regularization += np.linalg.norm(u-(self.u_prev+uj)/2,2)**2
-        cost  = 0.5 * np.linalg.norm(self.W@self.M@u-self.goal,2 )**2 + \
-                        collision_avoidance + init_position+ \
-                        self.rho*regularization
-        # print(cost)
-        # print('lambda : %.3f'%(self.lambd))
-        return cost
+    # def augmented_lagrangian(self,u):
+    #     # u=u.reshape(-1,self.K)
+    #     # u = np.expand_dims(u,axis=1)
+    #     u=u.reshape(-1,1)
+    #     # pdb.set_trace()
+    #     reach_goal =self.W @(self.col @ self.inits + self.M @ u )-self.goals
+    #     regularization = 0
+    #     print('final pos:')
+    #     print(self.W @(self.col @ self.inits + self.M @ u ))
+    #     # cost =
+    #     self.away_from_the_goal=( np.linalg.norm(reach_goal,2) **2)
+    #
+    #     for j in range(self.K):
+    #         if j == self.index:
+    #             pass #myself, skip
+    #         else:
+    #             uj_prev = self.neighbors_dict[j]
+    #             regularization += self.rho/2.0 * np.linalg.norm(u-(self.u_prev+uj_prev)/2 )**2
+    #     # pdb.set_trace()
+    #     self.regularization=regularization
+    #
+    #     cost =0.5 * np.linalg.norm(reach_goal,2) ** 2+ regularization + ((u.T @ self.lambd)[0,0])
+    #
+    #     # return (1.0/self.K)*self.W @(self.col @ self.inits + self.M @ u )-self.goals + \
+    #     #                 self.rho/2.0 *np.linalg.norm(u-(self.u_prev+uj_prev)/2 )**2 + \
+    #     #                 (u.T @ self.lambd)[0,0]
+    #     # print('distacne cost:%.2f, regularize %.2f'%(0.5 * np.linalg.norm(reach_goal,2) ** 2,self.rho/2.0 *regularization))
+    #     return cost
 
-    def primal_update(self,method='CG'):
-        result = sp.optimize.minimize(self.augmented_lagrangian,
-                                    x0=self.u0,
-                                    args=(self.u),
-                                    method=method)#,
-                                    # tol=0.001)
+    # def primal_update(self):
+    #     result = sp.optimize.minimize(self.augmented_lagrangian,
+    #                                 x0=self.u0,
+    #                                 method='Nelder-Mead',
+    #                                 tol=0.1)#,
+    #     self.cost=result['fun']
+    #     # print('cost: %.3f'%self.cost)
+    #     # pdb.set_trace()
+    #     # return result['x'].reshape(-1,self.K)
+    #     return np.expand_dims(result['x'],axis=1)
+
+    def primal_update(self):
         # pdb.set_trace()
-        self.u_prev = self.u
-        self.u = np.expand_dims(result['x'],axis=1)
+        Ai = self.W @ self.M
+        bi = self.goals-self.W @(self.col @ self.inits)
+        # pdb.set_trace()
+        new_u=(1/self.K) * np.linalg.solve((1.0) * (Ai.T @ Ai + self.rho * self.K * np.eye(Ai.shape[1])),self.rho * (self.u + self.neighbors_dict[np.mod(self.index+1,self.K)]) + 2*Ai.T @bi - self.lambd)
+        # print('terminal position: ')
+        # print(Ai@new_u)
+        self.u = new_u
+
 
     def dual_update(self):
+        # pdb.set_trace()
         new_lambd=self.lambd
-        # if self.neighbors is None:
-        #     self.get_neighbors()
         for j in self.neighbors_dict.keys():
-            # pdb.set_trace()
-            new_lambd +=  self.rho*( self.u - self.neighbors_dict[j][0])
-        self.lambd_prev = self.lambd
+            new_lambd +=  self.rho*( self.u- self.neighbors_dict[j])
+
         self.lambd = new_lambd
-
-    def compare_vals(self):
-        # if self.neighbors is None:
-        #     self.get_neighbors()
-        deviation = 0
-        for j in self.neighbors_dict.keys():
-            deviation += np.linalg.norm(self.u - self.neighbors_dict[j][0])
-        if deviation< self.eps: #uj
-            return True
-                # print('%d and %d converged'%(i,j))
-        else :
-            return False
-
-    # def step_forwad(self):
-    #     self.x_new = self.A@self.x + self.B @ self.u[-2:,1]

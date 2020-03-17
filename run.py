@@ -2,51 +2,70 @@ import argparse
 import pdb
 import numpy as np
 from agent import Robot
+import matplotlib.pyplot as plt
+from run_admm import ADMMSolver
 
-A = np.array([[.1, .2],[.3, .4]])
-B  = np.array([[0],[1]])
+# np.random.seed(1234)
+# A =  np.array([[.2, .5],[.3, .4]])
+# B  = np.array([[.4],[.6]])
+A =  np.array([[1, 0],[0, 1]])
+B  = np.array([[1],[1]])
+# def simulate_the_rest_and_plot(X,U,all_u,inits,goals,iter):
+#     dim = 2
+#     # pdb.set_trace()
+#     K = int(inits.shape[0]/dim)
+#     for i in range(1,all_u.shape[0]):
+#         new_u=all_u[[i],:]
+#         U=np.vstack((U,new_u))
+#         new_pos=A@X[-1*dim:] + B@new_u
+#         X = np.vstack((X,new_pos))
+#         # pdb.set_trace()
+#     make_plots(X,inits.reshape(-1,K,order='F'),
+#                 goals.reshape(-1,K,order='F'),
+#                 iter)
 
-def build_M(H,dim,K,inits):
-    M = np.zeros((H*dim,(H)))
-    # M[0:2,0:2]=A
-    # M[0:2,[2]]=B
-    for i in range(0,M.shape[0],dim):
-        val = int(i/2+1)-1
-        # print('row %d, val=%d'%(i,val))
-        M[i:i+dim,[val]]=B
-        for j in range(val,0,-1):
-            # print(j)
-            M[i:i+dim,[j-1]]=np.matmul(A,M[i:i+dim,[j]])
-    col = inits
-    prev = inits
-    this=np.zeros((dim,K))
-    for i in range(H):
-        for k in range(K):
-            this[:,[k]] = np.matmul(A,prev[:,[k]])
-        # pdb.set_trace()
-        col = np.vstack((col, this))
-        prev = this
 
-    M = np.vstack((np.zeros((dim,M.shape[1])),M))
-    return col,M
+def process_x(x):
+    M,N = x.shape
+    xx = np.zeros((int(M/2),N))
+    xy = np.zeros_like(xx)
+    for i in range(int(M/2)):
+        xx[[i],:] = x[[2*i],:]
+        xy[[i],:] = x[[2*i+1],:]
+    # pdb.set_trace()
+    return xx, xy
 
-def simulate(robots, inits):
-    K = len(robots)
-    T = robots[0].u.shape[0]-1
-    pdb.set_trace()
-    x = np.zeros((T,K))
+def make_plots(X,inits,goals,iter):
+    plt.figure()
+    T,K = X.shape
+    filename = './results/traj_iter'+str(iter)+'.png'
+    x,y = process_x(X)
+    # pdb.set_trace()
+    print(x)
+    print(y)
     for k in range(K):
-        for t in range(T):
-            pass
+        lbl ='robot'+str(k)
+        goal_lbl = lbl + ' goal'
+        start_lbl = lbl + ' start'
+        # pdb.set_trace()
+        # color=cmap(k)
+        cmap = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
-def plot():
-    pass
+        # plt.show()
+        plt.scatter(inits[0,k],inits[1,k],c=cmap[k],marker='o',label=start_lbl)
+        plt.scatter(goals[0,k],goals[1,k],c=cmap[k],marker='*',label=goal_lbl)
+        # pdb.set_trace()
+        plt.plot(x[:,k],y[:,k],label=lbl,c=cmap[k],alpha=0.5)
 
+    plt.legend()
+    plt.savefig(filename)
+    plt.close()
+    # plt.show()
 
 
 def simulate_and_plot(robots,inits, goals,iter):
-    simulate(robots,inits)
-    plot()
+    x=simulate(robots,inits)
+    make_plots(x,goals,iter)
 
 
 def main():
@@ -56,81 +75,91 @@ def main():
 
     parser.add_argument('--max-iter', type=int, default=500,
                         help='max ADMM iterations (termination conditions, default: 500) ')
+    parser.add_argument('--max-steps', type=int, default=50,
+                        help='max steps that agents can take to reach the goal (default:50)')
     parser.add_argument('--num-agents', type=int, default=4, metavar='N',
                         help='number of robots (default: 4)')
-    parser.add_argument('--rho', type=float, default=0.4,
-                        help='step size (default: .4)')
+    parser.add_argument('--rho', type=float, default=.01,
+                        help='step size (default: .01)')
     parser.add_argument('--horizon', type=int, default=4, metavar='H',
                         help='TrajOpt horizon (default: 4)')
     parser.add_argument('--dim', type=int, default=2,
                         help='state space dimension (default: 2)')
+    parser.add_argument('--solver', type=str, default='Nelder-Mead',
+                        help='solver choice: choose \'CG\' or \'Powell\' to begin. default: CG')
 
     args = parser.parse_args()
-    # with open(args.config, 'r') as f:
-    #     config = eval(f.read())
 
+    # inits = np.array([[1],[0],[0],[2],[3],[3],[2],[0]])
+    # goals = np.array([[2],[1],[1],[3],[4],[4],[3],[1]])
+    inits = np.array([[0],[0],[4],[4]])
+    goals = np.array([[3],[3],[1],[1]])
+    # col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents)
 
-    inits = np.array([[1,0],[0,2],[4,4],[2,0]]).T
-    goals = np.array([[4,4],[2,0],[0,0],[3,3]]).T
-    col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents,inits=inits)
-
-
-
+    np.set_printoptions(precision=3,suppress=True)
+    random_u0=np.float64(np.random.randint(-2,5,size=(args.horizon*args.num_agents,1)))
     robots= []
     for i in range(args.num_agents):
         robots.append(Robot(A = A,
                             B=B,
                             dim=args.dim,
-                            goal=goals[:,[i]],
+                            inits=inits,
+                            goals=goals,
+                            u0=random_u0,
                             rho = args.rho,
                             K =args.num_agents,
                             index=i,
                             H = args.horizon,
-                            M_part = M_part,
-                            col=col))
+                            method=args.solver)) # i should move this to run_admm
 
     rho_candidates = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 0.8]
     solvers = ['Powell', 'CG']
-    x = []
+    paths = inits
+    controls=None
+    admm = ADMMSolver(robots=robots,
+                     K = args.num_agents,
+                      max_iter=args.max_iter)
 
-    count = 0
-    result = np.zeros((args.num_agents,1))
-    # pdb.set_trace()
+    traj_count =0
+    start = inits
+    track_results =np.zeros((1,args.num_agents))
+    np.set_printoptions(precision=2, suppress=True)
+    U = np.ones((1,args.num_agents))
+    X = inits.reshape(-1,args.num_agents,order='F')
     while True:
-        if np.mod(count,10) ==0:
-            print('iter %d .... ' %count)
-            pdb.set_trace()
-        for k in range(args.num_agents):
-            #update neighbors
-            neighbors=robots[k].get_neighbors()
-            for j in neighbors:
-                robots[k].neighbors_dict[j] =(robots[j].send_info())
+        admm.solve()
+        print('iter %d .... ' %traj_count)
+        new_u=robots[0].u.reshape(-1,args.num_agents,order='F')[[0],:]
+        pos = (robots[0].M @ robots[0].u + (robots[0].col @ inits) ).reshape(-1,args.num_agents,order='F')
         # pdb.set_trace()
-        # simulate_and_plot(robots,inits, goals,count)
+        make_plots(np.vstack((inits.reshape(-1,args.num_agents,order='F'),pos)),inits.reshape(-1,args.num_agents,order='F'),goals.reshape(-1,args.num_agents,order='F'),traj_count)
+        last_pos = pos[-args.dim:]
+        U=np.vstack((U,new_u))
+        new_pos=A@X[-args.dim:] + B@new_u
+        X = np.vstack((X,new_pos))
+        # simulate_the_rest_and_plot(X,U,robots[0].u.reshape(-1,args.num_agents,order='F'),
+        #                             inits,goals,traj_count)
+        '''
+        #update u0 & x0 values
+        for k in range(args.num_agents):
+            robots[k].u0=np.copy(robots[0].u)
+            # pdb.set_trace()
+            robots[k].inits=np.copy(new_pos.reshape(-1,1))'''
+        # pdb.set_trace()
+        how_close=np.linalg.norm(last_pos-goals.reshape(-1,args.num_agents,order='F'))
+        print('how close: %.2f'%how_close)
 
-        for k in range(args.num_agents):
-            robots[k].primal_update()
-            robots[k].dual_update()
-            # robots[k].step_forward()
-        # pdb.set_trace()
-        count +=1
-        if count > args.max_iter:
-            print('failed to converge, loop broken by the safety counter')
+        if how_close<.1:
+            print('reached the goal')
             break
 
-        result = np.zeros((args.num_agents,1))
-        if count > 10:
-            for k in range(args.num_agents):
-                result[k] = int(robots[k].compare_vals())
-            print(np.sum(result))
-            if np.sum(result) ==args.num_agents: #slack
-                print('converged!!')
-                break
+        if traj_count >=args.max_steps:
+            print('traj failed to converge, loop broken by the safety counter')
+            break
+        traj_count +=1
 
-    #simulate()
-    for k in range(args.num_agents):
-        pass
-    pdb.set_trace()
+    iter ='FINAL'
+
     print('')
 
 
