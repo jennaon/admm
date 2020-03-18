@@ -39,20 +39,23 @@ class Robot():
         self.method = method
 
     def init_M(self):
-        M = np.zeros((self.H*self.dim,(self.H)))
+        M = np.zeros((self.H*self.dim,self.H*self.dim))
         for i in range(0,M.shape[0],self.dim):
-            val = int(i/2+1)-1
-            M[i:i+self.dim,[val]]=self.B
-            for j in range(val,0,-1):
-                M[i:i+self.dim,[j-1]]=self.A @ M[i:i+self.dim,[j]]
+            # val = int(i/2+1)-1
+            M[i:i+self.dim,i:i+self.dim]=self.B
+            # pdb.set_trace()
+
+            for j in range(i-1,0,-self.dim):
+                # print(j)
+                M[i:i+self.dim,j-self.dim+1:j+1]=self.A @ M[i:i+self.dim,j+1:j+1+self.dim]
 
         col = np.zeros((self.dim*(self.H+1),self.dim))
         col[0:2,0:2]=np.eye(2)
         for i in range(self.H):
             col[self.dim*(i+1):self.dim*(i+2),:] = self.A @ col[self.dim*(i):self.dim*(i+1),:]
+        # pdb.set_trace()
         # self.M = M
         self.M = np.kron(np.eye(self.K,dtype=int),M)
-        # pdb.set_trace()
         # self.col = col[2:,:].reshape(-1,1) # propagation of how each robot propagates its init position thru time
         self.col = np.kron(np.eye(self.K),col[2:,:])
 

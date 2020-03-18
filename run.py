@@ -9,7 +9,7 @@ np.random.seed(1234)
 # A =  np.array([[.2, .5],[.3, .4]])
 # B  = np.array([[.4],[.6]])
 A =  np.array([[1, 0],[0, 1]])
-B  = np.array([[1],[1]])
+B  = np.array([[1, 0],[0, 1]])
 
 # def simulate_the_rest_and_plot(X,U,all_u,inits,goals,iter):
 #     dim = 2
@@ -90,14 +90,14 @@ def main():
 
     args = parser.parse_args()
 
-    inits = np.array([[0],[2],[3],[2],[3],[3],[2],[0]])
-    goals = np.array([[2],[4],[0],[-1],[4],[4],[3],[1]])
-    # inits = np.array([[0],[0],[4],[4]])
-    # goals = np.array([[3],[3],[1],[1]])
+    # inits = np.array([[0],[2],[3],[2],[3],[3],[2],[0]])
+    # goals = np.array([[2],[4],[0],[-1],[4],[4],[3],[1]])
+    inits = np.array([[0],[0],[4],[4]])
+    goals = np.array([[3],[3],[1],[1]])
     # col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents)
 
     np.set_printoptions(precision=3,suppress=True)
-    random_u0=np.float64(np.random.randint(-2,5,size=(args.horizon*args.num_agents,1)))
+    random_u0=np.float64(np.random.randint(-2,5,size=(args.horizon*args.num_agents*args.dim,1)))
     robots= []
     for i in range(args.num_agents):
         robots.append(Robot(A = A,
