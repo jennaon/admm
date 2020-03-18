@@ -5,11 +5,12 @@ from agent import Robot
 import matplotlib.pyplot as plt
 from run_admm import ADMMSolver
 
-# np.random.seed(1234)
+np.random.seed(1234)
 # A =  np.array([[.2, .5],[.3, .4]])
 # B  = np.array([[.4],[.6]])
 A =  np.array([[1, 0],[0, 1]])
 B  = np.array([[1],[1]])
+
 # def simulate_the_rest_and_plot(X,U,all_u,inits,goals,iter):
 #     dim = 2
 #     # pdb.set_trace()
@@ -40,7 +41,6 @@ def make_plots(X,inits,goals,iter):
     T,K = X.shape
     filename = './results/traj_iter'+str(iter)+'.png'
     x,y = process_x(X)
-    # pdb.set_trace()
     print(x)
     print(y)
     for k in range(K):
@@ -90,10 +90,10 @@ def main():
 
     args = parser.parse_args()
 
-    # inits = np.array([[1],[0],[0],[2],[3],[3],[2],[0]])
-    # goals = np.array([[2],[1],[1],[3],[4],[4],[3],[1]])
-    inits = np.array([[0],[0],[4],[4]])
-    goals = np.array([[3],[3],[1],[1]])
+    inits = np.array([[0],[2],[3],[2],[3],[3],[2],[0]])
+    goals = np.array([[2],[4],[0],[-1],[4],[4],[3],[1]])
+    # inits = np.array([[0],[0],[4],[4]])
+    # goals = np.array([[3],[3],[1],[1]])
     # col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents)
 
     np.set_printoptions(precision=3,suppress=True)
@@ -127,29 +127,30 @@ def main():
     U = np.ones((1,args.num_agents))
     X = inits.reshape(-1,args.num_agents,order='F')
     while True:
-        admm.solve()
+        admm.solve(traj_count)
         print('iter %d .... ' %traj_count)
         new_u=robots[0].u.reshape(-1,args.num_agents,order='F')[[0],:]
         pos = (robots[0].M @ robots[0].u + (robots[0].col @ inits) ).reshape(-1,args.num_agents,order='F')
         # pdb.set_trace()
         make_plots(np.vstack((inits.reshape(-1,args.num_agents,order='F'),pos)),inits.reshape(-1,args.num_agents,order='F'),goals.reshape(-1,args.num_agents,order='F'),traj_count)
         last_pos = pos[-args.dim:]
-        U=np.vstack((U,new_u))
-        new_pos=A@X[-args.dim:] + B@new_u
-        X = np.vstack((X,new_pos))
+        # U=np.vstack((U,new_u))
+        # new_pos=A@X[-args.dim:] + B@new_u
+        # X = np.vstack((X,new_pos))
         # simulate_the_rest_and_plot(X,U,robots[0].u.reshape(-1,args.num_agents,order='F'),
         #                             inits,goals,traj_count)
-        '''
-        #update u0 & x0 values
-        for k in range(args.num_agents):
-            robots[k].u0=np.copy(robots[0].u)
-            # pdb.set_trace()
-            robots[k].inits=np.copy(new_pos.reshape(-1,1))'''
         # pdb.set_trace()
+        #update u0 & x0 values
+        # for k in range(args.num_agents):
+        #     robots[k].u0=np.copy(robots[0].u)
+        #     # pdb.set_trace()
+        #     robots[k].inits=np.copy(new_pos.reshape(-1,1))
+
+
         how_close=np.linalg.norm(last_pos-goals.reshape(-1,args.num_agents,order='F'))
         print('how close: %.2f'%how_close)
 
-        if how_close<.1:
+        if how_close<.5:
             print('reached the goal')
             break
 

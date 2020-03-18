@@ -64,55 +64,54 @@ class Robot():
     def send_info(self):
         return self.u
 
-    # def augmented_lagrangian(self,u):
-    #     # u=u.reshape(-1,self.K)
-    #     # u = np.expand_dims(u,axis=1)
-    #     u=u.reshape(-1,1)
-    #     # pdb.set_trace()
-    #     reach_goal =self.W @(self.col @ self.inits + self.M @ u )-self.goals
-    #     regularization = 0
-    #     print('final pos:')
-    #     print(self.W @(self.col @ self.inits + self.M @ u ))
-    #     # cost =
-    #     self.away_from_the_goal=( np.linalg.norm(reach_goal,2) **2)
-    #
-    #     for j in range(self.K):
-    #         if j == self.index:
-    #             pass #myself, skip
-    #         else:
-    #             uj_prev = self.neighbors_dict[j]
-    #             regularization += self.rho/2.0 * np.linalg.norm(u-(self.u_prev+uj_prev)/2 )**2
-    #     # pdb.set_trace()
-    #     self.regularization=regularization
-    #
-    #     cost =0.5 * np.linalg.norm(reach_goal,2) ** 2+ regularization + ((u.T @ self.lambd)[0,0])
-    #
-    #     # return (1.0/self.K)*self.W @(self.col @ self.inits + self.M @ u )-self.goals + \
-    #     #                 self.rho/2.0 *np.linalg.norm(u-(self.u_prev+uj_prev)/2 )**2 + \
-    #     #                 (u.T @ self.lambd)[0,0]
-    #     # print('distacne cost:%.2f, regularize %.2f'%(0.5 * np.linalg.norm(reach_goal,2) ** 2,self.rho/2.0 *regularization))
-    #     return cost
-
-    # def primal_update(self):
-    #     result = sp.optimize.minimize(self.augmented_lagrangian,
-    #                                 x0=self.u0,
-    #                                 method='Nelder-Mead',
-    #                                 tol=0.1)#,
-    #     self.cost=result['fun']
-    #     # print('cost: %.3f'%self.cost)
-    #     # pdb.set_trace()
-    #     # return result['x'].reshape(-1,self.K)
-    #     return np.expand_dims(result['x'],axis=1)
-
-    def primal_update(self):
+    def augmented_lagrangian(self,u):
+        # u=u.reshape(-1,self.K)
+        # u = np.expand_dims(u,axis=1)
+        u=u.reshape(-1,1)
         # pdb.set_trace()
-        Ai = self.W @ self.M
-        bi = self.goals-self.W @(self.col @ self.inits)
+        reach_goal =self.W @(self.col @ self.inits + self.M @ u )-self.goals
+        regularization = 0
+        print('final pos:')
+        print(self.W @(self.col @ self.inits + self.M @ u ))
+        self.away_from_the_goal=( np.linalg.norm(reach_goal,2) **2)
+
+        for j in range(self.K):
+            if j == self.index:
+                pass #myself, skip
+            else:
+                uj_prev = self.neighbors_dict[j]
+                regularization += self.rho/2.0 * np.linalg.norm(u-(self.u_prev+uj_prev)/2 )**2
         # pdb.set_trace()
-        new_u=(1/self.K) * np.linalg.solve((1.0) * (Ai.T @ Ai + self.rho * self.K * np.eye(Ai.shape[1])),self.rho * (self.u + self.neighbors_dict[np.mod(self.index+1,self.K)]) + 2*Ai.T @bi - self.lambd)
+        self.regularization=regularization
+
+        cost = np.linalg.norm(reach_goal,2) ** 2+ regularization + ((u.T @ self.lambd)[0,0])
+
+        print('distacne cost:%.2f, regularize %.2f'%(0.5 * np.linalg.norm(reach_goal,2) ** 2,self.rho/2.0 *regularization))
+        return (1/self.K)* cost
+
+    def primal_update(self,iter):
+        # self.rho = self.rho/
+        result = sp.optimize.minimize(self.augmented_lagrangian,
+                                    x0=self.u0,
+                                    method='Nelder-Mead',
+                                    tol=0.1)#,
+        self.cost=result['fun']
+        # pdb.set_trace()
+        self.u = np.expand_dims(result['x'],axis=1)
+    #
+    # def primal_update(self,iter):
+    #     Ai = self.W @ self.M
+    #     bi = self.goals-self.W @(self.col @ self.inits)
+    #     # pdb.set_trace()
+    #     avg = 0
+    #     for j in self.neighbors_dict.keys():
+    #          uj_prev = self.neighbors_dict[j]
+    #          avg += self.u + uj_prev
+    #     new_u=(1/self.K) * np.linalg.solve((1.0) * ((1/2.0) * (Ai.T @ Ai + self.rho * self.K * np.eye(Ai.shape[1]))),
+    #                                             (self.rho/(iter+.01)) *avg + 2*Ai.T @bi - self.lambd)
         # print('terminal position: ')
         # print(Ai@new_u)
-        self.u = new_u
+        # self.u = new_u
 
 
     def dual_update(self):

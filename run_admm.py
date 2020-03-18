@@ -11,11 +11,11 @@ class ADMMSolver():
         self.max_iter = max_iter
         self.threshold = .1
 
-    def iterate_step(self):
+    def iterate_step(self,iter):
         # new_u=np.zeros((self.robots[0].u.shape[0],self.K))
         for k in range(self.K):
             robot = self.robots[k]
-            robot.primal_update()
+            robot.primal_update(iter)
             # print(new_u)
         for k in range(self.K):
             robot = self.robots[k]
@@ -30,15 +30,12 @@ class ADMMSolver():
                 uj =self.robots[j].send_info()
                 robot.neighbors_dict[j] =uj
 
-    def solve(self):
+    def solve(self,iter):
         count = 0
         result = np.zeros((self.K,1))
         # print(np.hstack((self.robots[0].u,self.robots[1].u)))
         while True:
             print('admm iter %d .... ' %count)
-
-            # if np.mod(count,2) ==0:
-            # pdb.set_trace()
             self.update_my_data()
 
             '''
@@ -49,7 +46,7 @@ class ADMMSolver():
             -include something that if admm fails to converge,
                 try again with a different init etc
             '''
-            self.iterate_step()
+            self.iterate_step(iter)
             # pdb.set_trace()
             count +=1
             if count > self.max_iter:
