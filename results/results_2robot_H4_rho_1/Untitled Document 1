@@ -1,0 +1,2 @@
+python run.py --max-iter 10 --horizon 4 --max-steps 3 --num-agents 2 --rho 0.1
+
