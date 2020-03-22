@@ -37,6 +37,8 @@ class Robot():
         self.W =np.kron(np.eye(self.K,dtype=int),self.W)
         # pdb.set_trace()
         self.method = method
+        self.distance_cost=[]
+        self.reg_cost=[]
 
     def init_M(self):
         M = np.zeros((self.H*self.dim,self.H*self.dim))
@@ -74,8 +76,8 @@ class Robot():
         # pdb.set_trace()
         reach_goal =self.W @(self.col @ self.inits + self.M @ u )-self.goals
         regularization = 0
-        print('final pos:')
-        print(self.W @(self.col @ self.inits + self.M @ u ))
+        # print('final pos:')
+        # print(self.W @(self.col @ self.inits + self.M @ u ))
         self.away_from_the_goal=( np.linalg.norm(reach_goal,2) **2)
 
         for j in range(self.K):
@@ -89,7 +91,9 @@ class Robot():
 
         cost = np.linalg.norm(reach_goal,2) ** 2+ regularization + ((u.T @ self.lambd)[0,0])
 
-        print('distacne cost:%.2f, regularize %.2f'%(0.5 * np.linalg.norm(reach_goal,2) ** 2,self.rho/2.0 *regularization))
+        print('distacne cost:%.2f, regularize %.2f'%(0.5 * np.linalg.norm(reach_goal,2) ** 2,regularization))
+        self.distance_cost.append(0.5 * np.linalg.norm(reach_goal,2) ** 2)
+        self.reg_cost.append(regularization)
         return (1/self.K)* cost
 
     def primal_update(self,iter):

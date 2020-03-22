@@ -36,31 +36,65 @@ def process_x(x):
     # pdb.set_trace()
     return xx, xy
 
-def make_plots(X,inits,goals,iter):
-    plt.figure()
+def make_plots(X,inits,goals,iter,how_close):
+    fig=plt.figure()
+    ax=plt.subplot(111)
     T,K = X.shape
-    filename = './results/traj_iter'+str(iter)+'.png'
+    filename = './2robot-fargoal-H1-rho-001/traj_iter'+str(iter)+'.png'
     x,y = process_x(X)
     print(x)
     print(y)
+    cmap = plt.rcParams['axes.prop_cycle'].by_key()['color']
     for k in range(K):
         lbl ='robot'+str(k)
         goal_lbl = lbl + ' goal'
         start_lbl = lbl + ' start'
         # pdb.set_trace()
         # color=cmap(k)
-        cmap = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
         # plt.show()
-        plt.scatter(inits[0,k],inits[1,k],c=cmap[k],marker='o',label=start_lbl)
-        plt.scatter(goals[0,k],goals[1,k],c=cmap[k],marker='*',label=goal_lbl)
+        ax.scatter(inits[0,k],inits[1,k],c=cmap[k],marker='o',label=start_lbl)
+        ax.scatter(goals[0,k],goals[1,k],c=cmap[k],marker='*',label=goal_lbl)
         # pdb.set_trace()
-        plt.plot(x[:,k],y[:,k],label=lbl,c=cmap[k],alpha=0.5)
+        ax.plot(x[:,k],y[:,k],label=lbl,c=cmap[k],alpha=0.5)
+    box=ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
-    plt.legend()
+    # Put a legend to the right of the current axis
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+    # plt.legend()
+    title = 'Total distance away from the goals=' + str(np.round(how_close,2))
+    plt.title(title)
     plt.savefig(filename)
     plt.close()
+
+def make_dist_reg_plot(dist,reg,iter):
+    #regularization & distance cost plot
+    fig=plt.figure()
+    # pdb.set_trace()
+    ax=plt.subplot(111)
+
+    # dist = dists[0]
+    time = np.linspace(0, len(dist)-1, len(dist))
+    cst_lbl = 'distance from the goal'
+    ax.plot(time, dist, label=cst_lbl)
+
+    # reg = regs[0]
+    reg_lbl = 'regularization cost'
+    ax.plot(time, reg, label=reg_lbl)
     # plt.show()
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                 box.width, box.height * 0.9])
+    legend=ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+          fancybox=False, shadow=False, ncol=5)
+    title = 'Iterative optimization of ADMM'
+    filename = './2robot-fargoal-H1-rho-001/reg_dist'+str(iter)+'.png'
+    fig.suptitle(title)
+    plt.savefig(filename)
+    plt.close()
+
 
 
 def simulate_and_plot(robots,inits, goals,iter):
@@ -93,7 +127,8 @@ def main():
     # inits = np.array([[0],[2],[3],[2],[3],[3],[2],[0]])
     # goals = np.array([[2],[4],[0],[-1],[4],[4],[3],[1]])
     inits = np.array([[0],[0],[4],[4]])
-    goals = np.array([[3],[3],[1],[1]])
+    # goals = np.array([[3],[3],[1],[1]])
+    goals = np.array([[25],[12],[60],[40]])
     # col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents)
 
     np.set_printoptions(precision=3,suppress=True)
@@ -132,7 +167,7 @@ def main():
         new_u=robots[0].u.reshape(-1,args.num_agents,order='F')[[0],:]
         pos = (robots[0].M @ robots[0].u + (robots[0].col @ inits) ).reshape(-1,args.num_agents,order='F')
         # pdb.set_trace()
-        make_plots(np.vstack((inits.reshape(-1,args.num_agents,order='F'),pos)),inits.reshape(-1,args.num_agents,order='F'),goals.reshape(-1,args.num_agents,order='F'),traj_count)
+
         last_pos = pos[-args.dim:]
         # U=np.vstack((U,new_u))
         # new_pos=A@X[-args.dim:] + B@new_u
@@ -149,7 +184,15 @@ def main():
 
         how_close=np.linalg.norm(last_pos-goals.reshape(-1,args.num_agents,order='F'))
         print('how close: %.2f'%how_close)
+        make_plots(np.vstack((inits.reshape(-1,args.num_agents,order='F'),pos)),inits.reshape(-1,args.num_agents,order='F'),goals.reshape(-1,args.num_agents,order='F'),traj_count,how_close)
 
+        #collect reg & dist data:
+        # dists = []
+        # regs=[]
+        # for k in range(args.num_agents):
+        #     dists.append(robots[k].distance_cost)
+        #     regs.append(robots[k].reg_cost)
+        make_dist_reg_plot(robots[0].distance_cost, robots[0].reg_cost,traj_count)
         if how_close<.5:
             print('reached the goal')
             break
