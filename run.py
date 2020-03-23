@@ -36,11 +36,11 @@ def process_x(x):
     # pdb.set_trace()
     return xx, xy
 
-def make_plots(X,inits,goals,iter,how_close):
+def make_plots(X,inits,goals,iter,how_close,dir):
     fig=plt.figure()
     ax=plt.subplot(111)
     T,K = X.shape
-    filename = './2robot-fargoal-H1-rho-001/traj_iter'+str(iter)+'.png'
+    filename = dir+str(iter)+'.png'
     x,y = process_x(X)
     print(x)
     print(y)
@@ -64,12 +64,13 @@ def make_plots(X,inits,goals,iter,how_close):
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
     # plt.legend()
+    filename = dir+'traj_'+str(iter)+'.png'
     title = 'Total distance away from the goals=' + str(np.round(how_close,2))
     plt.title(title)
     plt.savefig(filename)
     plt.close()
 
-def make_dist_reg_plot(dist,reg,iter):
+def make_dist_reg_plot(dist,reg,iter,dir):
     #regularization & distance cost plot
     fig=plt.figure()
     # pdb.set_trace()
@@ -90,8 +91,50 @@ def make_dist_reg_plot(dist,reg,iter):
     legend=ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
           fancybox=False, shadow=False, ncol=5)
     title = 'Iterative optimization of ADMM'
-    filename = './2robot-fargoal-H1-rho-001/reg_dist'+str(iter)+'.png'
+    filename = dir+'regdist_'+str(iter)+'.png'
     fig.suptitle(title)
+    plt.savefig(filename)
+    plt.close()
+
+def make_u_plot(u,umax,iter,dir):
+    fig=plt.figure()
+    K = u.shape[1]
+    ux,uy=process_x(u)
+    uxmax,uymax = process_x(umax)
+    time = np.linspace(0, len(ux)-1, len(ux))
+
+    cmap = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+    # pdb.set_trace()
+    ax=plt.subplot(211)
+    for k in range(K):
+        lbl ='robot'+str(k)
+        ax.plot(time,uxmax[0,k],'r-', label='maximum u')
+        ax.bar(time,ux[:,k],label=lbl,color=cmap[k],alpha=0.8)
+
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                 box.width, box.height * 0.9])
+    legend=ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+          fancybox=False, shadow=False, ncol=5)
+
+    plt.title('Optimized X direction control input')
+
+    ax=plt.subplot(212)
+    for k in range(K):
+        lbl ='robot'+str(k)
+        ax.plot(time,uymax[0,k],'r-', label='maximum u')
+        ax.bar(time,uy[:,k],label=lbl,color=cmap[k],alpha=0.8)
+
+    plt.title('Optimized Y direction control input')
+
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                 box.width, box.height * 0.9])
+    legend=ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+          fancybox=False, shadow=False, ncol=5)
+    filename = dir+'u_'+ str(iter)+'.png'
+    # fig.suptitle(title)
     plt.savefig(filename)
     plt.close()
 
@@ -119,6 +162,8 @@ def main():
                         help='TrajOpt horizon (default: 4)')
     parser.add_argument('--dim', type=int, default=2,
                         help='state space dimension (default: 2)')
+    parser.add_argument('--umax', type=float, default=100.0,
+                        help='Maximum command (default: 100)')
     parser.add_argument('--solver', type=str, default='Nelder-Mead',
                         help='solver choice: choose \'CG\' or \'Powell\' to begin. default: CG')
 
@@ -127,9 +172,10 @@ def main():
     # inits = np.array([[0],[2],[3],[2],[3],[3],[2],[0]])
     # goals = np.array([[2],[4],[0],[-1],[4],[4],[3],[1]])
     inits = np.array([[0],[0],[4],[4]])
-    # goals = np.array([[3],[3],[1],[1]])
-    goals = np.array([[25],[12],[60],[40]])
+    goals = np.array([[3],[3],[1],[1]])
+    # goals = np.array([[25],[12],[60],[40]])
     # col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents)
+    dir='./2robot_test/'
 
     np.set_printoptions(precision=3,suppress=True)
     random_u0=np.float64(np.random.randint(-2,5,size=(args.horizon*args.num_agents*args.dim,1)))
@@ -141,6 +187,7 @@ def main():
                             inits=inits,
                             goals=goals,
                             u0=random_u0,
+                            umax=args.umax,
                             rho = args.rho,
                             K =args.num_agents,
                             index=i,
@@ -184,7 +231,10 @@ def main():
 
         how_close=np.linalg.norm(last_pos-goals.reshape(-1,args.num_agents,order='F'))
         print('how close: %.2f'%how_close)
-        make_plots(np.vstack((inits.reshape(-1,args.num_agents,order='F'),pos)),inits.reshape(-1,args.num_agents,order='F'),goals.reshape(-1,args.num_agents,order='F'),traj_count,how_close)
+        make_plots(np.vstack((inits.reshape(-1,args.num_agents,order='F'),pos)),
+                    inits.reshape(-1,args.num_agents,order='F'),
+                    goals.reshape(-1,args.num_agents,order='F'),
+                    traj_count,how_close,dir)
 
         #collect reg & dist data:
         # dists = []
@@ -192,7 +242,13 @@ def main():
         # for k in range(args.num_agents):
         #     dists.append(robots[k].distance_cost)
         #     regs.append(robots[k].reg_cost)
-        make_dist_reg_plot(robots[0].distance_cost, robots[0].reg_cost,traj_count)
+        make_dist_reg_plot(robots[0].distance_cost,
+                            robots[0].reg_cost,
+                            traj_count,dir)
+
+        make_u_plot(robots[0].u.reshape(-1,args.num_agents,order='F'),
+                    np.ones_like(robots[0].u.reshape(-1,args.num_agents,order='F'))*args.umax,
+                    traj_count,dir)
         if how_close<.5:
             print('reached the goal')
             break
