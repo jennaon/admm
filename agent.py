@@ -6,7 +6,7 @@ import pdb
 from scipy.optimize import minimize
 
 class Robot():
-    def __init__(self,dim,inits,goals,A,B,u0,rho,K,index,H,method):
+    def __init__(self,dim,inits,goals,A,B,u0,umax,rho,K,index,H,method):
         self.A = A
         self.B = B
         self.dim=dim
@@ -27,7 +27,7 @@ class Robot():
         self.control=[]
         self.u  = np.copy(self.u0)
         self.u_prev = np.zeros_like(self.u0)
-        self.lambd= np.zeros_like(self.u0)
+        self.lambd= np.zeros_like(np.vstack((self.u0,self.u0)))
         self.rho = rho
         self.init_M()
 
@@ -39,6 +39,7 @@ class Robot():
         self.method = method
         self.distance_cost=[]
         self.reg_cost=[]
+        self.umax =umax
 
     def init_M(self):
         M = np.zeros((self.H*self.dim,self.H*self.dim))
@@ -67,7 +68,8 @@ class Robot():
         return list(np.hstack((neigh[:self.index],neigh[self.index+1:])))
 
     def send_info(self):
-        return self.u
+        # return self.u
+        return [self.u, self.lambd]
 
     def augmented_lagrangian(self,u):
         # u=u.reshape(-1,self.K)
@@ -84,17 +86,25 @@ class Robot():
             if j == self.index:
                 pass #myself, skip
             else:
-                uj_prev = self.neighbors_dict[j]
+                uj_prev = self.neighbors_dict[j][0]
                 regularization += self.rho/2.0 * np.linalg.norm(u-(self.u_prev+uj_prev)/2 )**2
         # pdb.set_trace()
         self.regularization=regularization
+        umax_const = np.abs(u) - (1/self.K) * np.ones_like(u) * self.umax
 
-        cost = np.linalg.norm(reach_goal,2) ** 2+ regularization + ((u.T @ self.lambd)[0,0])
+        # pdb.set_trace()
+        # cost = np.linalg.norm(reach_goal,2) ** 2+ regularization + ((u.T @ self.lambd)[0,0]) #original master
+        cost = np.linalg.norm(reach_goal,2) ** 2+ \
+                self.rho / (4*len(self.neighbors_dict.keys())) * np.linalg.norm(
+                            2.0/self.rho *regularization - \
+                            1/self.rho * self.lambd[:len(self.u)] +\
+                            1/self.rho * umax_const ,2)**2
 
         print('distacne cost:%.2f, regularize %.2f'%(0.5 * np.linalg.norm(reach_goal,2) ** 2,regularization))
         self.distance_cost.append(0.5 * np.linalg.norm(reach_goal,2) ** 2)
         self.reg_cost.append(regularization)
-        return (1/self.K)* cost
+        # return (1/self.K)* cost
+        return cost
 
     def primal_update(self,iter):
         # self.rho = self.rho/
@@ -123,8 +133,16 @@ class Robot():
 
     def dual_update(self):
         # pdb.set_trace()
-        new_lambd=self.lambd
+        new_lambd=self.lambd[:len(self.u)]
         for j in self.neighbors_dict.keys():
-            new_lambd +=  self.rho*( self.u- self.neighbors_dict[j])
+            new_lambd += self.rho * (self.lambd[len(self.u):] - self.neighbors_dict[j][1][len(self.u):])
+            # new_lambd +=  self.rho*( np.vstack(self.u- self.neighbors_dict[j],
+            #                                     self.u))
+        new_nu = np.zeros_like(self.u)
+        for j in self.neighbors_dict.keys():
+            new_nu += self.lambd[len(self.u):] + self.neighbors_dict[j][1][len(self.u):]
+        new_nu += 1/self.rho * (self.lambd[:len(self.u)]  +  np.abs(self.u) - (1/self.K)* np.ones_like(self.u) * self.umax)
 
-        self.lambd = new_lambd
+
+
+        self.lambd = np.vstack((new_lambd,1/(2*len(self.neighbors_dict.keys())) * new_nu))
