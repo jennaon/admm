@@ -100,38 +100,50 @@ def make_u_plot(u,umax,iter,dir):
     fig=plt.figure()
     K = u.shape[1]
     ux,uy=process_x(u)
-    uxmax,uymax = process_x(umax)
+    # uxmax,uymax = process_x(umax)
     time = np.linspace(0, len(ux)-1, len(ux))
 
     cmap = plt.rcParams['axes.prop_cycle'].by_key()['color']
-
+    width = 0.4
     # pdb.set_trace()
     ax=plt.subplot(211)
+    ax.axhline(umax,linestyle='--',color='r')
+    ax.axhline(-umax,linestyle='--',color='r')
     for k in range(K):
-        lbl ='robot'+str(k)
-        ax.plot(time,uxmax[0,k],'r-', label='maximum u')
-        ax.bar(time,ux[:,k],label=lbl,color=cmap[k],alpha=0.8)
+        lbl ='robot'+str(k) + ' x'
+        # ax.plot(time,uxmax[0,k],'r-', label='maximum u')
+        if k!=0:
+            newtime=time-width/2 + width/k
+        else:
+            newtime=time-width/2
+        ax.bar(newtime,ux[:,k],width=width,label=lbl,color=cmap[k],alpha=0.8)
 
     box = ax.get_position()
-    ax.set_position([box.x0, box.y0 + box.height * 0.1,
-                 box.width, box.height * 0.9])
-    legend=ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+    ax.set_position([box.x0, box.y0 + box.height * 0.2,
+                 box.width, box.height * 0.8])
+    legend=ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15),
           fancybox=False, shadow=False, ncol=5)
 
     plt.title('Optimized X direction control input')
 
     ax=plt.subplot(212)
+    ax.axhline(umax,linestyle='--',color='r')
+    ax.axhline(-umax,linestyle='--',color='r')
     for k in range(K):
-        lbl ='robot'+str(k)
-        ax.plot(time,uymax[0,k],'r-', label='maximum u')
-        ax.bar(time,uy[:,k],label=lbl,color=cmap[k],alpha=0.8)
+        lbl ='robot'+str(k) + ' y'
+        # ax.plot(time,uymax[0,k],'r-', label='maximum u')
+        if k!=0:
+            newtime=time-width/2 + width/k
+        else:
+            newtime=time-width/2
+        ax.bar(newtime,uy[:,k],width=width,label=lbl,color=cmap[k],alpha=0.8)
 
     plt.title('Optimized Y direction control input')
 
     box = ax.get_position()
     ax.set_position([box.x0, box.y0 + box.height * 0.1,
-                 box.width, box.height * 0.9])
-    legend=ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+                 box.width, box.height * 0.8])
+    legend=ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2),
           fancybox=False, shadow=False, ncol=5)
     filename = dir+'u_'+ str(iter)+'.png'
     # fig.suptitle(title)
@@ -162,8 +174,8 @@ def main():
                         help='TrajOpt horizon (default: 4)')
     parser.add_argument('--dim', type=int, default=2,
                         help='state space dimension (default: 2)')
-    parser.add_argument('--umax', type=float, default=100.0,
-                        help='Maximum command (default: 100)')
+    parser.add_argument('--umax', type=float, default=10.0,
+                        help='Maximum command (default: 10)')
     parser.add_argument('--solver', type=str, default='Nelder-Mead',
                         help='solver choice: choose \'CG\' or \'Powell\' to begin. default: CG')
 
@@ -172,10 +184,10 @@ def main():
     # inits = np.array([[0],[2],[3],[2],[3],[3],[2],[0]])
     # goals = np.array([[2],[4],[0],[-1],[4],[4],[3],[1]])
     inits = np.array([[0],[0],[4],[4]])
-    goals = np.array([[3],[3],[1],[1]])
-    # goals = np.array([[25],[12],[60],[40]])
+    # goals = np.array([[3],[3],[1],[1]])
+    goals = np.array([[20],[20],[0],[0]])
     # col,M_part = build_M(H=args.horizon, dim=args.dim,K=args.num_agents)
-    dir='./2robot_test/'
+    dir='./test/'
 
     np.set_printoptions(precision=3,suppress=True)
     random_u0=np.float64(np.random.randint(-2,5,size=(args.horizon*args.num_agents*args.dim,1)))
@@ -247,7 +259,7 @@ def main():
                             traj_count,dir)
 
         make_u_plot(robots[0].u.reshape(-1,args.num_agents,order='F'),
-                    np.ones_like(robots[0].u.reshape(-1,args.num_agents,order='F'))*args.umax,
+                    args.umax,
                     traj_count,dir)
         if how_close<.5:
             print('reached the goal')
